@@ -4,7 +4,7 @@ button{min-height:44px;font-size:15px}button:disabled{background:#9aa8bb;cursor:
 #mainBtn{font-size:17px;padding:10px 20px}.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}#mode{flex:1;min-width:200px;font-size:14px}
 li{list-style:none}ul,ol{padding-left:0}ol{padding-left:22px}ol li{list-style:decimal}ul.items li{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #edf1f6;padding:4px 0}
 #err{background:#fdecec;color:#8a1c1c;border:1px solid #f3b7b7;border-radius:8px;padding:10px}#routeBox{background:#eef9f2;border:1px solid #b6dfc5;color:#165f3a;border-radius:9px;padding:8px 12px;margin-top:10px;width:fit-content;max-width:100%;font-weight:600;font-size:14px}
-.mapwrap{overflow:auto;border-radius:10px;touch-action:pan-x pan-y pinch-zoom}.zoom{display:flex;gap:8px;margin:8px 0;touch-action:manipulation}.zoom{align-items:center;flex-wrap:wrap}.zoom button{min-width:52px;padding:0 12px;touch-action:manipulation}.zoom button[aria-disabled="true"],.zoom button[aria-disabled="true"]:hover{background:#9aa8bb;cursor:not-allowed}#zval{min-width:58px;text-align:center;font-weight:700;font-size:18px}.sw{display:inline-block;width:18px;height:12px;border-radius:3px;vertical-align:middle;margin-right:4px}.opt{margin-top:8px;line-height:2.4}
+.mapwrap{overflow:auto;border-radius:10px;touch-action:pan-x pan-y pinch-zoom}.zoom{display:flex;gap:8px;margin:8px 0;touch-action:none;-webkit-user-select:none;user-select:none}.zoom{align-items:center;flex-wrap:wrap}.zoom button{min-width:52px;padding:0 12px;touch-action:none;-webkit-user-select:none;user-select:none}.zoom button[aria-disabled="true"],.zoom button[aria-disabled="true"]:hover{background:#9aa8bb;cursor:not-allowed}#zval{min-width:58px;text-align:center;font-weight:700;font-size:18px}.sw{display:inline-block;width:18px;height:12px;border-radius:3px;vertical-align:middle;margin-right:4px}.opt{margin-top:8px;line-height:2.4}
 input[type=search],select{width:100%;padding:11px;font-size:16px;border:1px solid #cad3df;border-radius:7px}.note{background:#eef5ff;border-radius:8px;padding:8px 10px;font-size:13px;margin:8px 0}
 table{border-collapse:collapse;font-size:12px;width:100%}td,th{border:1px solid #dce3ec;padding:4px 6px;text-align:left;vertical-align:top}details{margin-top:18px}
 @media(max-width:850px){h1{font-size:24px}.panel{padding:12px}main{padding:14px 12px 96px}.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fffffff2;margin:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #dce3ec;box-shadow:0 -4px 16px #18243a18}#mainBtn{flex:0 0 auto}#mode{font-size:12px}}
@@ -163,7 +163,29 @@ function initUI(){
  $('mainBtn').onclick=()=>{$('mainBtn').dataset.a==='back'?store.back():store.showRoute();draw()};
  document.body.addEventListener('click',e=>{const b=e.target.closest('button[data-a]');if(!b||b.id)return;const a=b.dataset.a,id=b.dataset.id;
   if(a==='add')store.add([id],'valgt');if(a==='rm')store.remove(id);draw()});
- let z=100;const mw=$('mapwrap'),setZoomEnabled=(id,enabled)=>$(id).setAttribute('aria-disabled',String(!enabled)),canZoom=id=>$(id).getAttribute('aria-disabled')!=='true',upd=()=>{svg.style.width=z+'%';$('zval').textContent=z+' %';setZoomEnabled('zout',z>100);setZoomEnabled('zin',z<300);setZoomEnabled('zfit',!(z===100&&mw.scrollLeft===0&&mw.scrollTop===0))};const zoom=d=>{z=d?Math.min(300,Math.max(100,z+d)):100;if(!d){mw.scrollLeft=0;mw.scrollTop=0}upd()};mw.addEventListener('scroll',upd);upd();$('zin').onclick=()=>{if(canZoom('zin'))zoom(50)};$('zout').onclick=()=>{if(canZoom('zout'))zoom(-50)};$('zfit').onclick=()=>{if(canZoom('zfit'))zoom(0)};
+ let z=100;const mw=$('mapwrap'),setZoomEnabled=(id,enabled)=>$(id).setAttribute('aria-disabled',String(!enabled)),canZoom=id=>$(id).getAttribute('aria-disabled')!=='true',upd=()=>{svg.style.width=z+'%';$('zval').textContent=z+' %';setZoomEnabled('zout',z>100);setZoomEnabled('zin',z<300);setZoomEnabled('zfit',!(z===100&&mw.scrollLeft===0&&mw.scrollTop===0))};const zoom=d=>{z=d?Math.min(300,Math.max(100,z+d)):100;if(!d){mw.scrollLeft=0;mw.scrollTop=0}upd()};const zoomControls=document.querySelector('.zoom');
+ const activateZoom=id=>{if(!canZoom(id))return;if(id==='zin')zoom(50);else if(id==='zout')zoom(-50);else if(id==='zfit')zoom(0)};
+ let touchPress=null;
+ zoomControls.addEventListener('touchstart',e=>{
+  if(e.cancelable)e.preventDefault();
+  if(e.touches.length!==1){touchPress=null;return}
+  const b=e.target.closest('button'),t=e.touches[0];
+  touchPress=b&&zoomControls.contains(b)?{id:b.id,x:t.clientX,y:t.clientY}:null;
+ },{passive:false});
+ zoomControls.addEventListener('touchmove',e=>{
+  if(e.cancelable)e.preventDefault();
+  const t=e.touches[0];
+  if(touchPress&&(!t||Math.hypot(t.clientX-touchPress.x,t.clientY-touchPress.y)>18))touchPress=null;
+ },{passive:false});
+ zoomControls.addEventListener('touchend',e=>{
+  if(e.cancelable)e.preventDefault();
+  const tap=touchPress;touchPress=null;
+  const t=e.changedTouches[0];
+  if(tap&&e.changedTouches.length===1&&t&&Math.hypot(t.clientX-tap.x,t.clientY-tap.y)<=18)activateZoom(tap.id);
+ },{passive:false});
+ zoomControls.addEventListener('touchcancel',()=>{touchPress=null});
+ zoomControls.addEventListener('dblclick',e=>{if(e.cancelable)e.preventDefault()});
+ mw.addEventListener('scroll',upd);upd();$('zin').onclick=()=>activateZoom('zin');$('zout').onclick=()=>activateZoom('zout');$('zfit').onclick=()=>activateZoom('zfit');
  $('runTests').onclick=()=>{const R=runTests();$('testOut').innerHTML=`<p>${R.filter(x=>x.pass).length}/${R.length} bestået · ${navigator.userAgent}</p><table><tr><th>ID</th><th>Test</th><th>Forventet</th><th>Faktisk</th><th></th></tr>${R.map(x=>`<tr><td>${x.id}</td><td>${x.name}</td><td>${JSON.stringify(x.expected)}</td><td>${JSON.stringify(x.actual)}</td><td>${x.pass?'✔':'✘'}</td></tr>`).join('')}</table>`};
  $('summary').textContent=`${layout.shelves.length} hylder · ${products.length} varer · ${recipes.length} opskrifter · ${relations.length} vareforslagsrelationer`;
  window.HR_store=store;draw()}
